@@ -65,8 +65,8 @@ export async function generateAIDealMessage(product, affiliateUrl) {
     discount = Math.round(((original - sale) / original) * 100).toString();
   }
 
-  const ratingVal = product.rating || 4.2;
-  const reviewCountVal = product.reviewCount || 145;
+  const ratingVal = product.rating;
+  const reviewCountVal = product.reviewCount;
 
   const prompt = `${customInstruction}
 
@@ -76,8 +76,8 @@ Product Details:
 - Original Price: ${original && original > sale ? `₹${original.toLocaleString('en-IN')}` : 'N/A'}
 - Sale Price: ₹${sale.toLocaleString('en-IN')}
 - Discount: ${discount}%
-- Rating: ${ratingVal} / 5
-- Review Count: ${reviewCountVal}
+- Rating: ${ratingVal || 'N/A'}
+- Review Count: ${reviewCountVal || 'N/A'}
 - Affiliate URL: ${affiliateUrl}
 
 Generate the promotional message:`;
@@ -93,10 +93,20 @@ Generate the promotional message:`;
   } catch (err) {
     console.error('[AICopywriter] Gemini generation failed, using fallback templates:', err.message);
     
-    // Star rating generator
-    const fullStars = Math.round(parseFloat(ratingVal));
-    const emptyStars = 5 - fullStars;
-    const starStr = '★'.repeat(Math.max(0, Math.min(5, fullStars))) + '☆'.repeat(Math.max(0, Math.min(5, emptyStars)));
+    // Format rating line conditionally
+    let ratingLine = '';
+    if (ratingVal && parseFloat(ratingVal) > 0) {
+      const fullStars = Math.round(parseFloat(ratingVal));
+      const emptyStars = 5 - fullStars;
+      const starStr = '★'.repeat(Math.max(0, Math.min(5, fullStars))) + '☆'.repeat(Math.max(0, Math.min(5, emptyStars)));
+      
+      let bd = 'Trending';
+      const numRating = parseFloat(ratingVal);
+      if (numRating >= 4.3) bd = 'Bestseller';
+      else if (numRating >= 4.0) bd = 'Top Rated';
+
+      ratingLine = `\n★<b>${starStr} ${parseFloat(ratingVal).toFixed(1)}</b> (${reviewCountVal ? `${reviewCountVal}+` : '100+'} ratings)\n\n✅ Free Delivery  ✅ <b>${bd}</b>\n`;
+    }
     
     // Keyword category parser
     const text = String(product.title).toLowerCase();
@@ -107,12 +117,6 @@ Generate the promotional message:`;
     else if (text.match(/shirt|tshirt|jeans|top|kurta|dress|shoes|sneaker|sandal|watch|bag|wallet|belt/)) cat = 'Fashion';
     else if (text.match(/shampoo|serum|cream|facewash|lipstick|makeup|perfume|sunscreen|loreal|mamaearth/)) cat = 'Beauty';
     else if (text.match(/cooker|pan|kettle|vacuum|mop|bottle|container|kitchen|bedsheet|pillow|curtain/)) cat = 'Home & Kitchen';
-    
-    // Dynamic badge
-    let bd = 'Trending';
-    const numRating = parseFloat(ratingVal);
-    if (numRating >= 4.3) bd = 'Bestseller';
-    else if (numRating >= 4.0) bd = 'Top Rated';
 
     const salePrice = sale ? sale.toLocaleString('en-IN') : 'N/A';
     const mrpPrice = original ? original.toLocaleString('en-IN') : 'N/A';
@@ -121,10 +125,7 @@ Generate the promotional message:`;
 
 <b>${escapeHtml(product.title)}</b>
 
-<s>₹${mrpPrice}</s>  ➜  <b>₹${salePrice}</b>
-★<b>${starStr} ${parseFloat(ratingVal).toFixed(1)}</b> (${reviewCountVal}+ ratings)
-
-✅ Free Delivery  ✅ <b>${bd}</b>
+<s>₹${mrpPrice}</s>  ➜  <b>₹${salePrice}</b>{ratingLine}
 ⏰ Price may increase anytime
 
 👉 <b>Grab Now:</b> ${affiliateUrl}`;

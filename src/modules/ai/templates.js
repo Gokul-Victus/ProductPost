@@ -4,10 +4,7 @@ const DEFAULT_TEMPLATE = `📱 <b>{category}</b> | ⚡ <b>{discount}% OFF</b>
 
 <b>{title}</b>
 
-<s>₹{originalPrice}</s>  ➜  <b>₹{salePrice}</b>
-★<b>{starRating} {rating}</b> ({reviewCount}+ ratings)
-
-✅ Free Delivery  ✅ <b>{badge}</b>
+<s>₹{originalPrice}</s>  ➜  <b>₹{salePrice}</b>{ratingLine}
 ⏰ Price may increase anytime
 
 👉 <b>Grab Now:</b> {affiliateUrl}`;
@@ -85,17 +82,24 @@ export async function formatDealMessage(product, affiliateUrl) {
   }
 
   // Generate dynamic fields
-  const ratingVal = product.rating || 4.2;
   const category = detectCategory(product.title, product.store);
-  const starRating = generateStarRating(ratingVal);
-  const badge = getBadge(ratingVal);
-  const reviewCount = product.reviewCount || 145;
+  const ratingVal = product.rating;
+  const reviewCount = product.reviewCount;
+  
+  // Format rating line conditionally (omit if null/missing)
+  let ratingLine = '';
+  if (ratingVal && parseFloat(ratingVal) > 0) {
+    const starRating = generateStarRating(ratingVal);
+    const badge = getBadge(ratingVal);
+    const ratingStr = parseFloat(ratingVal).toFixed(1);
+    const reviewsStr = reviewCount ? `${reviewCount}+` : '100+';
+    ratingLine = `\n★<b>${starRating} ${ratingStr}</b> (${reviewsStr} ratings)\n\n✅ Free Delivery  ✅ <b>${badge}</b>\n`;
+  }
 
   // Safe strings
   const title = escapeHtml(product.title);
   const originalPrice = product.originalPrice ? product.originalPrice.toLocaleString('en-IN') : 'N/A';
   const salePrice = product.salePrice ? product.salePrice.toLocaleString('en-IN') : 'N/A';
-  const rating = parseFloat(ratingVal).toFixed(1);
 
   // Replace placeholders
   return template
@@ -103,11 +107,7 @@ export async function formatDealMessage(product, affiliateUrl) {
     .replace(/{originalPrice}/g, originalPrice)
     .replace(/{salePrice}/g, salePrice)
     .replace(/{discount}/g, discount)
-    .replace(/{rating}/g, rating)
-    .replace(/{starRating}/g, starRating)
-    .replace(/{category}/g, category)
-    .replace(/{badge}/g, badge)
-    .replace(/{reviewCount}/g, reviewCount.toString())
+    .replace(/{ratingLine}/g, ratingLine)
     .replace(/{store}/g, product.store || 'Store')
     .replace(/{affiliateUrl}/g, affiliateUrl);
 }

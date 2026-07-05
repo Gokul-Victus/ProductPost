@@ -299,8 +299,8 @@ export async function executeFetcher(options = {}) {
 
           if (!finalRating || isNaN(finalRating)) {
             console.log(`[Fetcher] Fallback rating used for product: ${mapping.externalId} (${mapping.store})`);
-            finalRating = 4.2;
-            finalReviewCount = 145;
+            finalRating = null;
+            finalReviewCount = null;
           }
 
           const normalized = normalizeProduct({
@@ -310,7 +310,7 @@ export async function executeFetcher(options = {}) {
             salePrice: finalPrice,
             originalPrice: finalMrp,
             rating: finalRating,
-            reviewCount: finalReviewCount || 145,
+            reviewCount: finalReviewCount,
             store: mapping.store,
             rawUrl: mapping.cleanUrl
           }, mapping.store);
