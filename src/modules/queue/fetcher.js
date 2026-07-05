@@ -294,13 +294,23 @@ export async function executeFetcher(options = {}) {
             ? liveData.image
             : parsedDeal.image;
 
+          let finalRating = (liveData && liveData.rating) ? parseFloat(liveData.rating) : null;
+          let finalReviewCount = (liveData && liveData.reviewCount) ? parseInt(liveData.reviewCount, 10) : null;
+
+          if (!finalRating || isNaN(finalRating)) {
+            console.log(`[Fetcher] Fallback rating used for product: ${mapping.externalId} (${mapping.store})`);
+            finalRating = 4.2;
+            finalReviewCount = 145;
+          }
+
           const normalized = normalizeProduct({
             externalId: mapping.externalId,
             title: finalTitle,
             imageUrl: finalImage,
             salePrice: finalPrice,
             originalPrice: finalMrp,
-            rating: 4.2,
+            rating: finalRating,
+            reviewCount: finalReviewCount || 145,
             store: mapping.store,
             rawUrl: mapping.cleanUrl
           }, mapping.store);

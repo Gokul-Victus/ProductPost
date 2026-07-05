@@ -72,7 +72,9 @@ export async function enqueueProduct(product, channels = ['telegram']) {
         status: 'pending',
         formatted_content: JSON.stringify({
           salePrice: product.salePrice,
-          originalPrice: product.originalPrice
+          originalPrice: product.originalPrice,
+          rating: product.rating,
+          reviewCount: product.reviewCount
         })
       })
       .select();

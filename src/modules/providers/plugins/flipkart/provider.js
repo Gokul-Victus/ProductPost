@@ -135,10 +135,19 @@ export class FlipkartProvider extends BaseProvider {
         imageUrl = imgMatch[1];
       }
 
+      // 5. Extract Rating
       let rating = '';
       const ratingMatch = html.match(/<div[^>]*class="[^"]*_3LWZlK[^"]*"[^>]*>\s*([0-9.]+)/i);
       if (ratingMatch) {
         rating = ratingMatch[1];
+      }
+
+      let reviewCount = '';
+      const reviewsMatch = html.match(/class="_2_dy_F"[^>]*>\s*<span>([0-9,]+)\s*Ratings/i) || 
+                           html.match(/([0-9,]+)\s*Ratings\s*&amp;\s*[0-9,]+\s*Reviews/i) ||
+                           html.match(/([0-9,]+)\s*Ratings\s*&\s*[0-9,]+\s*Reviews/i);
+      if (reviewsMatch) {
+        reviewCount = reviewsMatch[1].replace(/,/g, '');
       }
 
       if (!title || !price) {
@@ -152,7 +161,8 @@ export class FlipkartProvider extends BaseProvider {
         image: imageUrl,
         price,
         mrp: mrp || price,
-        rating: rating || '4.2',
+        rating: rating || null,
+        reviewCount: reviewCount ? parseInt(reviewCount, 10) : null,
         url: cleanUrl
       };
 
@@ -169,7 +179,8 @@ export class FlipkartProvider extends BaseProvider {
       image: 'https://img1a.flixcart.com/www/linchpin/fk-cp-zion/img/fk-logo_f64856.png',
       price: '499',
       mrp: '999',
-      rating: '4.1',
+      rating: null,
+      reviewCount: null,
       url
     };
   }

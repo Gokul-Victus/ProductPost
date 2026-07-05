@@ -1,5 +1,5 @@
 import { BaseProvider } from '../../base.js';
-import { extractAsin } from './affiliate.js';
+import { extractAsin, getAmazonHighResImage } from './affiliate.js';
 import { config } from './config.js';
 import { supabase } from '../../../../database/supabase.js';
 import { AmazonPAAPI } from './paapi.js';
@@ -227,6 +227,13 @@ export class AmazonProvider extends BaseProvider {
         rating = ratingMatch[1];
       }
 
+      let reviewCount = '';
+      const reviewsMatch = html.match(/id="acrCustomerReviewText"[^>]*>\s*([0-9,]+)\s*(?:ratings|reviews)/i) || 
+                           html.match(/([0-9,]+)\s*global ratings/i);
+      if (reviewsMatch) {
+        reviewCount = reviewsMatch[1].replace(/,/g, '');
+      }
+
       if (!title || !price) {
         console.warn(`[AmazonProvider] Scraping parsed empty values for ASIN ${asin}. Returning fallback test data.`);
         return this.getFallbackProduct(asin, cleanUrl);
@@ -235,10 +242,11 @@ export class AmazonProvider extends BaseProvider {
       return {
         asin,
         title,
-        image: imageUrl,
+        image: getAmazonHighResImage(imageUrl),
         price,
         mrp: mrp || price,
-        rating: rating || '4.0',
+        rating: rating || null,
+        reviewCount: reviewCount ? parseInt(reviewCount, 10) : null,
         url: cleanUrl
       };
 
@@ -257,6 +265,7 @@ export class AmazonProvider extends BaseProvider {
         price: '71999',
         mrp: '79900',
         rating: '4.6',
+        reviewCount: 8420,
         url
       },
       'B0C9F8F8N2': {
@@ -266,6 +275,7 @@ export class AmazonProvider extends BaseProvider {
         price: '22999',
         mrp: '26999',
         rating: '4.2',
+        reviewCount: 4210,
         url
       }
     };
@@ -276,7 +286,8 @@ export class AmazonProvider extends BaseProvider {
       image: 'https://m.media-amazon.com/images/I/31W%2Bq%2BCXyOL.jpg',
       price: '999',
       mrp: '1499',
-      rating: '4.3',
+      rating: null, // Let it trigger the fallback log
+      reviewCount: null,
       url
     };
   }

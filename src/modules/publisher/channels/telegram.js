@@ -27,38 +27,60 @@ export async function publishToTelegram({ title, imageUrl, affiliateUrl, formatt
     throw new Error('[TelegramPublisher] Bot Token or Channel ID is missing in database settings.');
   }
 
-  const method = imageUrl ? 'sendPhoto' : 'sendMessage';
+  let imageBlob = null;
+  if (imageUrl) {
+    try {
+      const imgRes = await fetch(imageUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+          'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8'
+        }
+      });
+      if (imgRes.status === 200) {
+        imageBlob = await imgRes.blob();
+      } else {
+        console.warn(`[TelegramPublisher] Image URL returned non-200 status (${imgRes.status}): ${imageUrl}. Dropping image.`);
+      }
+    } catch (e) {
+      console.warn(`[TelegramPublisher] Failed to download image server-side: ${e.message}. Dropping image.`);
+    }
+  }
+
+  const usePhoto = imageBlob !== null;
+  const method = usePhoto ? 'sendPhoto' : 'sendMessage';
   const telegramUrl = `https://api.telegram.org/bot${bot_token}/${method}`;
 
-  // Formulate payload.
-  // HTML parse mode allows simple tags: <b>, <i>, <s>, <a>
-  const payload = imageUrl
-    ? {
-        chat_id: channel_id,
-        photo: imageUrl,
-        caption: formattedContent || `<b>${title}</b>\n\n🛒 <b>Buy Now:</b> ${affiliateUrl}`,
-        parse_mode: 'HTML'
-      }
-    : {
-        chat_id: channel_id,
-        text: formattedContent || `<b>${title}</b>\n\n🛒 <b>Buy Now:</b> ${affiliateUrl}`,
-        parse_mode: 'HTML',
-        disable_web_page_preview: false
-      };
+  let body;
+  let headers = {};
+
+  if (usePhoto) {
+    const formData = new FormData();
+    formData.append('chat_id', channel_id);
+    formData.append('photo', imageBlob, 'image.jpg');
+    formData.append('caption', formattedContent || `<b>${title}</b>\n\n🛒 <b>Buy Now:</b> ${affiliateUrl}`);
+    formData.append('parse_mode', 'HTML');
+    body = formData;
+  } else {
+    body = JSON.stringify({
+      chat_id: channel_id,
+      text: formattedContent || `<b>${title}</b>\n\n🛒 <b>Buy Now:</b> ${affiliateUrl}`,
+      parse_mode: 'HTML',
+      disable_web_page_preview: false
+    });
+    headers['Content-Type'] = 'application/json';
+  }
 
   try {
     const response = await fetch(telegramUrl, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(payload)
+      headers,
+      body
     });
 
     const resData = await response.json();
     if (!response.ok || !resData.ok) {
-      // If photo sending failed (e.g. bad image URL), fallback to a text-only message
-      if (imageUrl) {
+      // If photo sending failed, fallback to a text-only message
+      if (usePhoto) {
         console.warn(`[TelegramPublisher] Photo send failed: "${resData.description}". Falling back to text-only.`);
         const textUrl = `https://api.telegram.org/bot${bot_token}/sendMessage`;
         const textPayload = {

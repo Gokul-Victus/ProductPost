@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import { getAmazonHighResImage } from './affiliate.js';
 
 function sha256(data) {
   return crypto.createHash('sha256').update(data).digest('hex');
@@ -105,12 +106,16 @@ export class AmazonPAAPI {
     return items.map(item => {
       const asin = item.ASIN;
       const title = item.ItemInfo?.Title?.DisplayValue || 'Discounted Product';
-      const image = item.Images?.Primary?.Large?.URL || 'https://m.media-amazon.com/images/I/31W%2Bq%2BCXyOL.jpg';
+      const rawImage = item.Images?.Primary?.Large?.URL || 'https://m.media-amazon.com/images/I/31W%2Bq%2BCXyOL.jpg';
+      const image = getAmazonHighResImage(rawImage);
       
       const listing = item.Offers?.Listings?.[0];
       const price = listing?.Price?.Amount || null;
-      // SavingBasis is the List Price (MRP)
       const mrp = listing?.SavingBasis?.Amount || price;
+
+      // Extract real rating & reviews if present in API response, otherwise return null to trigger database fallback logging
+      const rating = item.CustomerReviews?.SearchBin?.Rating || null;
+      const reviewCount = item.CustomerReviews?.SearchBin?.Count || null;
 
       return {
         asin,
@@ -118,7 +123,8 @@ export class AmazonPAAPI {
         image,
         price: price ? String(price) : '999',
         mrp: mrp ? String(mrp) : '1499',
-        rating: '4.2', // PA-API 5.0 does not return star ratings directly, default to 4.2
+        rating: rating ? String(rating) : null,
+        reviewCount: reviewCount ? Number(reviewCount) : null,
         url: `https://www.amazon.in/dp/${asin}`
       };
     });

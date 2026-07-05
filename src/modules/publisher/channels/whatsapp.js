@@ -43,7 +43,21 @@ export async function publishToWhatsApp({ title, imageUrl, affiliateUrl, formatt
   // Strip any remaining HTML tags
   textContent = textContent.replace(/<[^>]*>/g, '');
 
-  const isPhoto = imageUrl && imageUrl.startsWith('http');
+  let cleanImageUrl = imageUrl;
+  if (imageUrl) {
+    try {
+      const imgRes = await fetch(imageUrl, { method: 'HEAD' });
+      if (imgRes.status !== 200) {
+        console.warn(`[WhatsAppPublisher] Image ${imageUrl} returned non-200 status (${imgRes.status}). Dropping image.`);
+        cleanImageUrl = null;
+      }
+    } catch (e) {
+      console.warn(`[WhatsAppPublisher] Failed to verify image URL: ${e.message}. Dropping image.`);
+      cleanImageUrl = null;
+    }
+  }
+
+  const isPhoto = cleanImageUrl && cleanImageUrl.startsWith('http');
   const method = isPhoto ? 'sendFileByUrl' : 'sendMessage';
   const cluster = instance_id.toString().substring(0, 4);
   const host = `https://${cluster}.api.greenapi.com`;
@@ -52,7 +66,7 @@ export async function publishToWhatsApp({ title, imageUrl, affiliateUrl, formatt
   const payload = isPhoto
     ? {
         chatId: chat_id,
-        urlFile: imageUrl,
+        urlFile: cleanImageUrl,
         fileName: 'deal_image.jpg',
         caption: textContent
       }

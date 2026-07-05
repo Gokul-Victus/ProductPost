@@ -14,10 +14,16 @@ export function normalizeProduct(rawData, store) {
 
   const s = store.toLowerCase();
   switch (s) {
-    case 'amazon':
-      return formatAmazon(rawData);
-    case 'flipkart':
-      return formatFlipkart(rawData);
+    case 'amazon': {
+      const formatted = formatAmazon(rawData);
+      formatted.reviewCount = rawData.reviewCount || null;
+      return formatted;
+    }
+    case 'flipkart': {
+      const formatted = formatFlipkart(rawData);
+      formatted.reviewCount = rawData.reviewCount || null;
+      return formatted;
+    }
     case 'myntra':
     case 'ajio':
     case 'meesho': {
@@ -35,6 +41,7 @@ export function normalizeProduct(rawData, store) {
         originalPrice: cleanVal(rawData.originalPrice || rawData.mrp),
         salePrice: cleanVal(rawData.salePrice || rawData.price),
         rating: parseFloat(rawData.rating) || 4.2,
+        reviewCount: rawData.reviewCount ? parseInt(rawData.reviewCount, 10) : null,
         store: store,
         rawUrl: rawData.rawUrl || rawData.url || null
       };

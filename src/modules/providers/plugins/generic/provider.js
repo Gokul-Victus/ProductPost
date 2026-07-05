@@ -55,11 +55,21 @@ export class GenericProvider extends BaseProvider {
                 mrp = offer.priceSpecification?.price || offer.highPrice || price;
               }
 
+              let ratingValue = null;
+              let reviewCount = null;
+
+              if (schema.aggregateRating) {
+                ratingValue = schema.aggregateRating.ratingValue || schema.aggregateRating.rating;
+                reviewCount = schema.aggregateRating.reviewCount || schema.aggregateRating.ratingCount;
+              }
+
               extracted = {
                 title: name,
                 image: image,
                 price: price,
-                mrp: mrp || price
+                mrp: mrp || price,
+                rating: ratingValue ? String(ratingValue) : null,
+                reviewCount: reviewCount ? Number(reviewCount) : null
               };
               break;
             }
@@ -84,7 +94,9 @@ export class GenericProvider extends BaseProvider {
             title: ogTitle[1].replace(/&amp;/g, '&'),
             image: ogImage ? ogImage[1] : null,
             price: ogPrice ? ogPrice[1] : '999',
-            mrp: ogPrice ? ogPrice[1] : '1499'
+            mrp: ogPrice ? ogPrice[1] : '1499',
+            rating: null,
+            reviewCount: null
           };
         }
       }
@@ -98,19 +110,20 @@ export class GenericProvider extends BaseProvider {
         image: extracted.image,
         price: extracted.price,
         mrp: extracted.mrp || extracted.price,
-        rating: '4.2',
+        rating: extracted.rating || null,
+        reviewCount: extracted.reviewCount || null,
         url: url
       };
 
     } catch (err) {
       console.error(`[GenericProvider] Failed to scrape ${url}:`, err.message);
-      // Return minimum fallback data so it does not crash the loop
       return {
         title: 'Discounted Product',
         image: 'https://m.media-amazon.com/images/I/31W%2Bq%2BCXyOL.jpg',
         price: '999',
         mrp: '1499',
-        rating: '4.2',
+        rating: null,
+        reviewCount: null,
         url: url
       };
     }

@@ -55,9 +55,11 @@ export async function executeWorker(options = {}) {
         if (formatted_content) {
           try {
             const meta = JSON.parse(formatted_content);
-            if (meta && (meta.salePrice !== undefined || meta.originalPrice !== undefined)) {
-              product.salePrice = meta.salePrice;
-              product.originalPrice = meta.originalPrice;
+            if (meta) {
+              if (meta.salePrice !== undefined) product.salePrice = meta.salePrice;
+              if (meta.originalPrice !== undefined) product.originalPrice = meta.originalPrice;
+              if (meta.rating !== undefined) product.rating = meta.rating;
+              if (meta.reviewCount !== undefined) product.reviewCount = meta.reviewCount;
             }
           } catch (e) {
             // ignore
