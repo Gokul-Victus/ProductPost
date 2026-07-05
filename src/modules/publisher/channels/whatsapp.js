@@ -46,7 +46,12 @@ export async function publishToWhatsApp({ title, imageUrl, affiliateUrl, formatt
   let cleanImageUrl = imageUrl;
   if (imageUrl) {
     try {
-      const imgRes = await fetch(imageUrl, { method: 'HEAD' });
+      const imgRes = await fetch(imageUrl, { 
+        method: 'GET',
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
+        }
+      });
       if (imgRes.status !== 200) {
         console.warn(`[WhatsAppPublisher] Image ${imageUrl} returned non-200 status (${imgRes.status}). Dropping image.`);
         cleanImageUrl = null;
