@@ -275,9 +275,22 @@ export async function executeFetcher(options = {}) {
           if (!parsedDeal) continue;
 
           // 3. Merge data
-          const finalTitle = (liveData && liveData.title && !liveData.title.includes('Amazon Product') && !liveData.title.includes('Generic Product')) 
+          const finalTitle = (liveData && liveData.title && !liveData.title.toLowerCase().includes('amazon product') && !liveData.title.toLowerCase().includes('generic product') && !liveData.title.toLowerCase().includes('flipkart product')) 
             ? liveData.title 
             : parsedDeal.title;
+
+          const isGenericTitle = !finalTitle || 
+                                 finalTitle.toLowerCase().includes('amazon product') || 
+                                 finalTitle.toLowerCase().includes('flipkart product') || 
+                                 finalTitle.toLowerCase().includes('generic product') || 
+                                 finalTitle.toLowerCase().includes('discounted product') ||
+                                 finalTitle.toLowerCase().includes('shopping product') ||
+                                 finalTitle.toLowerCase().includes('lootsyncs premium');
+
+          if (isGenericTitle) {
+            console.log(`[Fetcher] Skipping deal for ${mapping.externalId} due to generic/placeholder title: "${finalTitle}"`);
+            continue; // Skip enqueuing completely
+          }
 
           const finalPrice = (liveData && liveData.price && liveData.price != '999')
             ? liveData.price

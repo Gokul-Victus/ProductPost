@@ -102,7 +102,7 @@ export async function executeWorker(options = {}) {
         const slug = generateRandomSlug(6);
         
         // Host resolve (use override or localhost default)
-        const host = options.host || 'product-post.vercel.app';
+        const host = options.host || 'lootsyncs.vercel.app';
         const protocol = host.includes('localhost') || host.includes('127.0.0.1') ? 'http' : 'https';
         const redirectUrl = `${protocol}://${host}/api/go/${slug}`;
 

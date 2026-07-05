@@ -1,5 +1,6 @@
 import { supabase } from '../../../database/supabase.js';
 import { sendAdminAlert } from './telegram.js';
+import sharp from 'sharp';
 
 /**
  * Publishes a deal directly to a WhatsApp group, chat, or channel using Green API.
@@ -7,7 +8,7 @@ import { sendAdminAlert } from './telegram.js';
  * @param {string} params.title - Product title.
  * @param {string} [params.imageUrl] - Product image URL.
  * @param {string} params.affiliateUrl - Affiliate tracking link.
- * @param {string} params.formattedContent - HTML-formatted message text (converted to standard text for WhatsApp).
+ * @param {string} params.formattedContent - HTML-formatted message text.
  * @returns {Promise<Object>} Object containing message ID.
  */
 export async function publishToWhatsApp({ title, imageUrl, affiliateUrl, formattedContent }) {
@@ -27,8 +28,15 @@ export async function publishToWhatsApp({ title, imageUrl, affiliateUrl, formatt
     throw new Error('[WhatsAppPublisher] Instance ID, API Token, or Chat ID is missing in database settings.');
   }
 
+  // 2. Fetch image configuration
+  const { data: imgConfig } = await supabase
+    .from('settings')
+    .select('value')
+    .eq('key', 'image_config')
+    .maybeSingle();
+  const maxWidth = imgConfig?.value?.max_width || 800;
+
   // Convert HTML tags to plain text for WhatsApp formatting
-  // WhatsApp uses: *bold*, _italics_, ~strikethrough~
   let textContent = formattedContent || `*${title}*\n\n🛒 Buy Now: ${affiliateUrl}`;
   textContent = textContent
     .replace(/<b>(.*?)<\/b>/gi, '*$1*')
@@ -43,26 +51,69 @@ export async function publishToWhatsApp({ title, imageUrl, affiliateUrl, formatt
   // Strip any remaining HTML tags
   textContent = textContent.replace(/<[^>]*>/g, '');
 
-  let cleanImageUrl = imageUrl;
+  let cleanImageUrl = null;
   if (imageUrl) {
+    const cluster = instance_id.toString().substring(0, 4);
+    const host = `https://${cluster}.api.greenapi.com`;
+    
     try {
-      const imgRes = await fetch(imageUrl, { 
-        method: 'GET',
+      console.log(`[WhatsAppPublisher] Downloading and resizing image: ${imageUrl}`);
+      const imgRes = await fetch(imageUrl, {
         headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+          'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8'
         }
       });
-      if (imgRes.status !== 200) {
-        console.warn(`[WhatsAppPublisher] Image ${imageUrl} returned non-200 status (${imgRes.status}). Dropping image.`);
-        cleanImageUrl = null;
+      
+      if (imgRes.status === 200) {
+        const arrayBuffer = await imgRes.arrayBuffer();
+        const buffer = Buffer.from(arrayBuffer);
+        
+        // Resize and compress
+        const sharpImg = sharp(buffer);
+        const meta = await sharpImg.metadata();
+        
+        let processedBuffer;
+        if (meta.width && meta.width > maxWidth) {
+          processedBuffer = await sharpImg
+            .resize({ width: maxWidth, withoutEnlargement: true })
+            .jpeg({ quality: 80 })
+            .toBuffer();
+        } else {
+          processedBuffer = await sharpImg
+            .jpeg({ quality: 80 })
+            .toBuffer();
+        }
+        
+        // Upload to Green API hosted storage
+        const uploadUrl = `${host}/waInstance${instance_id}/uploadFile/${api_token}`;
+        const formData = new FormData();
+        const processedBlob = new Blob([processedBuffer], { type: 'image/jpeg' });
+        formData.append('file', processedBlob, 'deal_image.jpg');
+        
+        const uploadResponse = await fetch(uploadUrl, {
+          method: 'POST',
+          body: formData
+        });
+        
+        if (uploadResponse.ok) {
+          const uploadResult = await uploadResponse.json();
+          if (uploadResult.urlFile) {
+            cleanImageUrl = uploadResult.urlFile;
+            console.log(`[WhatsAppPublisher] Successfully uploaded resized image to Green API: ${cleanImageUrl}`);
+          }
+        } else {
+          console.warn(`[WhatsAppPublisher] Upload to Green API failed: ${uploadResponse.status}`);
+        }
+      } else {
+        console.warn(`[WhatsAppPublisher] Image download returned non-200 status (${imgRes.status}). Dropping image.`);
       }
     } catch (e) {
-      console.warn(`[WhatsAppPublisher] Failed to verify image URL: ${e.message}. Dropping image.`);
-      cleanImageUrl = null;
+      console.warn(`[WhatsAppPublisher] Failed to process/upload image: ${e.message}. Dropping image.`);
     }
   }
 
-  const isPhoto = cleanImageUrl && cleanImageUrl.startsWith('http');
+  const isPhoto = cleanImageUrl !== null;
   const method = isPhoto ? 'sendFileByUrl' : 'sendMessage';
   const cluster = instance_id.toString().substring(0, 4);
   const host = `https://${cluster}.api.greenapi.com`;
@@ -90,8 +141,6 @@ export async function publishToWhatsApp({ title, imageUrl, affiliateUrl, formatt
     });
 
     const resData = await response.json();
-    
-    // Green API returns idMessage on success
     if (!response.ok || !resData || !resData.idMessage) {
       throw new Error(resData?.description || resData?.message || `Green API HTTP ${response.status}`);
     }

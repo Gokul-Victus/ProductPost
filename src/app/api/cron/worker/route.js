@@ -19,7 +19,7 @@ export async function GET(request) {
   }
 
   try {
-    const host = request.headers.get('host') || 'product-post.vercel.app';
+    const host = request.headers.get('host') || 'lootsyncs.vercel.app';
     const result = await executeWorker({ host });
 
     // Log cron run to DB

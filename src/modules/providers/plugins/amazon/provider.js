@@ -213,11 +213,33 @@ export class AmazonProvider extends BaseProvider {
       }
 
       let imageUrl = '';
-      const imgMatch = html.match(/id="landingImage"[^]*?src="([^"]+)"/i) || 
-                       html.match(/data-old-hires="([^"]+)"/i) ||
-                       html.match(/property="og:image"\s+content="([^"]+)"/i);
-      if (imgMatch) {
-        imageUrl = imgMatch[1];
+      const ogImgMatch = html.match(/property="og:image"\s+content="([^"]+)"/i) || 
+                         html.match(/content="([^"]+)"\s+property="og:image"/i);
+      if (ogImgMatch) {
+        imageUrl = ogImgMatch[1];
+      } else {
+        const hiresMatch = html.match(/data-old-hires="([^"]+)"/i);
+        if (hiresMatch && !hiresMatch[1].includes('grey-pixel')) {
+          imageUrl = hiresMatch[1];
+        } else {
+          const dynamicImgMatch = html.match(/data-a-dynamic-image="([^"]+)"/i);
+          if (dynamicImgMatch) {
+            try {
+              const cleanJson = dynamicImgMatch[1].replace(/&quot;/g, '"');
+              const imgMap = JSON.parse(cleanJson);
+              const keys = Object.keys(imgMap);
+              if (keys.length > 0) imageUrl = keys[0];
+            } catch (e) {
+              // ignore
+            }
+          }
+          if (!imageUrl) {
+            const imgMatch = html.match(/id="landingImage"[^]*?src="([^"]+)"/i);
+            if (imgMatch && !imgMatch[1].includes('grey-pixel')) {
+              imageUrl = imgMatch[1];
+            }
+          }
+        }
       }
 
       let rating = '';

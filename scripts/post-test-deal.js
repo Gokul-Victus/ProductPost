@@ -22,7 +22,7 @@ async function run() {
     console.log('\n[2/2] Processing and publishing queued deals...');
     const workerResult = await executeWorker({ 
       limit: 1,
-      host: 'product-post.vercel.app' 
+      host: 'lootsyncs.vercel.app' 
     });
     console.log('Worker Execution Result:', JSON.stringify(workerResult, null, 2));
 

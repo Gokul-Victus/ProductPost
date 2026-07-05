@@ -49,7 +49,7 @@ async function run() {
     // Increase worker limit to 10 since there is no serverless timeout on GitHub Actions runner
     result = await executeWorker({ 
       limit: 10,
-      host: 'product-post.vercel.app' 
+      host: 'lootsyncs.vercel.app' 
     });
     console.log('[CronWorker CLI] Worker result:', result);
   } catch (err) {

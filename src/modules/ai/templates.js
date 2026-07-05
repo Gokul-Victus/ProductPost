@@ -1,38 +1,56 @@
 import { supabase } from '../../database/supabase.js';
 
-const DEFAULT_TEMPLATE = `📱 <b>{category}</b> | ⚡ <b>{discount}% OFF</b>
-
+const DEFAULT_TEMPLATE = `🔥 <b>{discount}% OFF</b> | <b>{category}</b>
 <b>{title}</b>
 
-<s>₹{originalPrice}</s>  ➜  <b>₹{salePrice}</b>{ratingLine}
+<s>₹{originalPrice}</s> ➜ <b>₹{salePrice}</b>{ratingLine}
+✅ Free Delivery
 ⏰ Price may increase anytime
 
-👉 <b>Grab Now:</b> {affiliateUrl}`;
+👉 <b>Grab Now →</b> {affiliateUrl}`;
 
 /**
- * Generates a visual star string from rating (e.g. 4.2 -> ★★★★☆)
+ * Generates a precise visual star string supporting half stars (e.g. 4.5 -> ★★★★½)
  */
 function generateStarRating(ratingVal) {
   const num = parseFloat(ratingVal);
   if (isNaN(num)) return '★★★★☆';
-  const fullStars = Math.round(num);
-  const emptyStars = 5 - fullStars;
-  return '★'.repeat(Math.max(0, Math.min(5, fullStars))) + '☆'.repeat(Math.max(0, Math.min(5, emptyStars)));
+  
+  const fullStars = Math.floor(num);
+  const decimal = num - fullStars;
+  
+  let stars = '★'.repeat(Math.max(0, Math.min(5, fullStars)));
+  if (decimal >= 0.25 && decimal < 0.75) {
+    stars += '½'; // Unicode half-star
+  } else if (decimal >= 0.75) {
+    stars += '★';
+  }
+  
+  const emptyStars = 5 - stars.replace('½', '').length;
+  if (emptyStars > 0) {
+    stars += '☆'.repeat(emptyStars);
+  }
+  return stars;
 }
 
 /**
- * Infers category from title keywords
+ * Infers category from title keywords (accessory-first re-ordered)
  */
 function detectCategory(title, store) {
   const text = String(title).toLowerCase();
   
-  if (text.match(/phone|mobile|iphone|samsung|oneplus|realme|redmi|vivo|oppo|xiaomi|pixel|moto/)) return 'Smartphones';
-  if (text.match(/laptop|macbook|computer|monitor|keyboard|mouse|router|wifi|asus|hp|dell|lenovo/)) return 'Electronics';
-  if (text.match(/headphone|earphone|earbuds|speaker|soundbar|audio|boat|noise|boult|sony/)) return 'Audio';
-  if (text.match(/shirt|tshirt|jeans|top|kurta|dress|shoes|sneaker|sandal|watch|bag|wallet|belt/)) return 'Fashion';
-  if (text.match(/shampoo|serum|cream|facewash|lipstick|makeup|perfume|sunscreen|loreal|mamaearth/)) return 'Beauty';
-  if (text.match(/cooker|pan|kettle|vacuum|mop|bottle|container|kitchen|bedsheet|pillow|curtain/)) return 'Home & Kitchen';
-  if (text.match(/supplement|protein|multivitamin|fitness|dumbbell|yoga|mask/)) return 'Health & Fitness';
+  // Specific accessories/peripherals take priority
+  if (text.match(/headphone|earphone|earbuds|speaker|soundbar|audio|buds|airdopes|neckband|tws/)) return 'Audio';
+  if (text.match(/laptop|macbook|computer|monitor|keyboard|mouse|router|wifi|printer|processor|gpu|ram/)) return 'Electronics';
+  if (text.match(/phone|mobile|smartphone|iphone|galaxy|nord/)) return 'Smartphones';
+  
+  // General brand targets next
+  if (text.match(/samsung|oneplus|realme|redmi|vivo|oppo|xiaomi|pixel|motorola|apple/)) return 'Smartphones';
+  
+  if (text.match(/shirt|tshirt|jeans|top|kurta|dress|shoes|sneaker|sandal|watch|bag|wallet|belt|clothing|wear/)) return 'Fashion';
+  if (text.match(/shampoo|serum|cream|facewash|lipstick|makeup|perfume|sunscreen|loreal|mamaearth|skincare|face/)) return 'Beauty';
+  if (text.match(/cooker|pan|kettle|vacuum|mop|bottle|container|kitchen|bedsheet|pillow|curtain|spatula|appliances/)) return 'Home & Kitchen';
+  if (text.match(/supplement|protein|multivitamin|fitness|dumbbell|yoga|gym/)) return 'Health & Fitness';
   
   if (store === 'Amazon' || store === 'Flipkart') return 'Deals';
   return 'Shopping';
@@ -93,7 +111,7 @@ export async function formatDealMessage(product, affiliateUrl) {
     const badge = getBadge(ratingVal);
     const ratingStr = parseFloat(ratingVal).toFixed(1);
     const reviewsStr = reviewCount ? `${reviewCount}+` : '100+';
-    ratingLine = `\n★<b>${starRating} ${ratingStr}</b> (${reviewsStr} ratings)\n\n✅ Free Delivery  ✅ <b>${badge}</b>\n`;
+    ratingLine = `\n${starRating} <b>${ratingStr}</b> (${reviewsStr} ratings) • <b>${badge}</b>\n`;
   }
 
   // Safe strings
@@ -107,6 +125,7 @@ export async function formatDealMessage(product, affiliateUrl) {
     .replace(/{originalPrice}/g, originalPrice)
     .replace(/{salePrice}/g, salePrice)
     .replace(/{discount}/g, discount)
+    .replace(/{category}/g, category)
     .replace(/{ratingLine}/g, ratingLine)
     .replace(/{store}/g, product.store || 'Store')
     .replace(/{affiliateUrl}/g, affiliateUrl);

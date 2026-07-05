@@ -1,4 +1,5 @@
 import { supabase } from '../../../database/supabase.js';
+import sharp from 'sharp';
 
 /**
  * Publishes a deal directly to a Telegram channel.
@@ -27,6 +28,14 @@ export async function publishToTelegram({ title, imageUrl, affiliateUrl, formatt
     throw new Error('[TelegramPublisher] Bot Token or Channel ID is missing in database settings.');
   }
 
+  // 2. Fetch image configuration
+  const { data: imgConfig } = await supabase
+    .from('settings')
+    .select('value')
+    .eq('key', 'image_config')
+    .maybeSingle();
+  const maxWidth = imgConfig?.value?.max_width || 800;
+
   let imageBlob = null;
   if (imageUrl) {
     try {
@@ -37,12 +46,33 @@ export async function publishToTelegram({ title, imageUrl, affiliateUrl, formatt
         }
       });
       if (imgRes.status === 200) {
-        imageBlob = await imgRes.blob();
+        const rawBlob = await imgRes.blob();
+        
+        // 3. Image resizing and compression using Sharp
+        const arrayBuffer = await rawBlob.arrayBuffer();
+        const buffer = Buffer.from(arrayBuffer);
+        
+        const sharpImg = sharp(buffer);
+        const meta = await sharpImg.metadata();
+        
+        let processedBuffer;
+        if (meta.width && meta.width > maxWidth) {
+          processedBuffer = await sharpImg
+            .resize({ width: maxWidth, withoutEnlargement: true })
+            .jpeg({ quality: 80 })
+            .toBuffer();
+        } else {
+          processedBuffer = await sharpImg
+            .jpeg({ quality: 80 })
+            .toBuffer();
+        }
+        
+        imageBlob = new Blob([processedBuffer], { type: 'image/jpeg' });
       } else {
         console.warn(`[TelegramPublisher] Image URL returned non-200 status (${imgRes.status}): ${imageUrl}. Dropping image.`);
       }
     } catch (e) {
-      console.warn(`[TelegramPublisher] Failed to download image server-side: ${e.message}. Dropping image.`);
+      console.warn(`[TelegramPublisher] Failed to download/resize image server-side: ${e.message}. Dropping image.`);
     }
   }
 

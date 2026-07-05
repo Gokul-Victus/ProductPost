@@ -34,7 +34,7 @@ async function diagnose() {
 
     if (!telegramRow || !telegramRow.value.bot_token || telegramRow.value.bot_token.trim() === '') {
       console.warn('⚠️ WARNING: Telegram credentials are EMPTY in your database settings table. The worker will fail to post.');
-      console.warn('👉 FIX: Go to https://product-post.vercel.app/settings in your browser, verify the pre-filled inputs, and click "Save Settings".');
+      console.warn('👉 FIX: Go to https://lootsyncs.vercel.app/settings in your browser, verify the pre-filled inputs, and click "Save Settings".');
     } else {
       console.log('✅ Telegram credentials are saved in the database settings table!');
     }
