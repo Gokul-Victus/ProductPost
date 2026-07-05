@@ -39,3 +39,12 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
           HEARTBEAT_SECRET: ${{ secrets.HEARTBEAT_SECRET }}
+
+      - name: Run Heartbeat Check CLI
+        run: node scripts/cron-heartbeat.js
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          HEARTBEAT_SECRET: ${{ secrets.HEARTBEAT_SECRET }}
