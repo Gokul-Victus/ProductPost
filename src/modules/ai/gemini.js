@@ -10,7 +10,7 @@ let genAIInstance = null;
  */
 export async function getGeminiModel() {
   if (genAIInstance) {
-    return genAIInstance.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    return genAIInstance.getGenerativeModel({ model: 'gemini-2.5-flash' });
   }
 
   let apiKey = process.env.GEMINI_API_KEY;
@@ -39,7 +39,7 @@ export async function getGeminiModel() {
 
   try {
     genAIInstance = new GoogleGenerativeAI(apiKey);
-    return genAIInstance.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    return genAIInstance.getGenerativeModel({ model: 'gemini-2.5-flash' });
   } catch (err) {
     console.error('[GeminiClient] Failed to initialize GoogleGenAI:', err.message);
     return null;
