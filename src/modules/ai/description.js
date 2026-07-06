@@ -8,8 +8,6 @@ You MUST format the final output using EXACTLY this structure:
 {title}
 
 ₹{originalPrice} ➜ ₹{salePrice}
-{starRating} {rating} ({reviewCount}+ ratings) • {badge}
-
 ✅ Free Delivery
 ⏰ Price may increase anytime
 
@@ -20,13 +18,9 @@ Rules:
 2. Replace {discount} with the calculated percent discount.
 3. Replace {title} with a clean, short, punchy version of the product title.
 4. Replace {originalPrice} and {salePrice} with formatted currency.
-5. Replace {rating} with rating float (e.g. 4.2).
-6. Replace {starRating} with a visual star representation (e.g., 4.2 -> ★★★★☆, 4.5 -> ★★★★½, 4.8 -> ★★★★★).
-7. Replace {reviewCount} with total reviews count (e.g. 145).
-8. Replace {badge} with: "Bestseller" if rating >= 4.3, "Top Rated" if >= 4.0, "Trending" otherwise.
-9. You MUST use raw HTML tags for formatting: <b>...</b> for bold, <s>...</s> for strikethrough.
-10. Print the affiliate link ({affiliateUrl}) visibly at the end as raw text.
-11. Return ONLY the final formatted HTML string.`;
+5. You MUST use raw HTML tags for formatting: <b>...</b> for bold, <s>...</s> for strikethrough.
+6. Print the affiliate link ({affiliateUrl}) visibly at the end as raw text.
+7. Return ONLY the final formatted HTML string.`;
 
 /**
  * Generates an AI-written high-CTR HTML post caption using Gemini.
@@ -64,9 +58,6 @@ export async function generateAIDealMessage(product, affiliateUrl) {
     discount = Math.round(((original - sale) / original) * 100).toString();
   }
 
-  const ratingVal = product.rating;
-  const reviewCountVal = product.reviewCount;
-
   const prompt = `${customInstruction}
 
 Product Details:
@@ -75,8 +66,6 @@ Product Details:
 - Original Price: ${original && original > sale ? `₹${original.toLocaleString('en-IN')}` : 'N/A'}
 - Sale Price: ₹${sale.toLocaleString('en-IN')}
 - Discount: ${discount}%
-- Rating: ${ratingVal || 'N/A'}
-- Review Count: ${reviewCountVal || 'N/A'}
 - Affiliate URL: ${affiliateUrl}
 
 Generate the promotional message:`;
@@ -91,32 +80,6 @@ Generate the promotional message:`;
     throw new Error('Gemini returned an empty caption.');
   } catch (err) {
     console.error('[AICopywriter] Gemini generation failed, using fallback templates:', err.message);
-    
-    // Format rating line conditionally
-    let ratingLine = '';
-    if (ratingVal && parseFloat(ratingVal) > 0) {
-      const num = parseFloat(ratingVal);
-      const fullStars = Math.floor(num);
-      const decimal = num - fullStars;
-      
-      let starStr = '★'.repeat(Math.max(0, Math.min(5, fullStars)));
-      if (decimal >= 0.25 && decimal < 0.75) {
-        starStr += '½';
-      } else if (decimal >= 0.75) {
-        starStr += '★';
-      }
-      const emptyStars = 5 - starStr.replace('½', '').length;
-      if (emptyStars > 0) {
-        starStr += '☆'.repeat(emptyStars);
-      }
-      
-      let bd = 'Trending';
-      const numRating = parseFloat(ratingVal);
-      if (numRating >= 4.3) bd = 'Bestseller';
-      else if (numRating >= 4.0) bd = 'Top Rated';
-
-      ratingLine = `\n${starStr} <b>${parseFloat(ratingVal).toFixed(1)}</b> (${reviewCountVal ? `${reviewCountVal}+` : '100+'} ratings) • <b>${bd}</b>\n`;
-    }
     
     // Keyword category parser (accessory-first re-ordered)
     const text = String(product.title).toLowerCase();
@@ -135,7 +98,7 @@ Generate the promotional message:`;
     return `🔥 <b>${discount}% OFF</b> | <b>${cat}</b>
 <b>${escapeHtml(product.title)}</b>
 
-<s>₹${mrpPrice}</s> ➜ <b>₹${salePrice}</b>{ratingLine}
+<s>₹${mrpPrice}</s> ➜ <b>₹${salePrice}</b>
 ✅ Free Delivery
 ⏰ Price may increase anytime
 

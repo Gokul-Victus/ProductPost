@@ -3,35 +3,11 @@ import { supabase } from '../../database/supabase.js';
 const DEFAULT_TEMPLATE = `🔥 <b>{discount}% OFF</b> | <b>{category}</b>
 <b>{title}</b>
 
-<s>₹{originalPrice}</s> ➜ <b>₹{salePrice}</b>{ratingLine}
+<s>₹{originalPrice}</s> ➜ <b>₹{salePrice}</b>
 ✅ Free Delivery
 ⏰ Price may increase anytime
 
 👉 <b>Grab Now →</b> {affiliateUrl}`;
-
-/**
- * Generates a precise visual star string supporting half stars (e.g. 4.5 -> ★★★★½)
- */
-function generateStarRating(ratingVal) {
-  const num = parseFloat(ratingVal);
-  if (isNaN(num)) return '★★★★☆';
-  
-  const fullStars = Math.floor(num);
-  const decimal = num - fullStars;
-  
-  let stars = '★'.repeat(Math.max(0, Math.min(5, fullStars)));
-  if (decimal >= 0.25 && decimal < 0.75) {
-    stars += '½'; // Unicode half-star
-  } else if (decimal >= 0.75) {
-    stars += '★';
-  }
-  
-  const emptyStars = 5 - stars.replace('½', '').length;
-  if (emptyStars > 0) {
-    stars += '☆'.repeat(emptyStars);
-  }
-  return stars;
-}
 
 /**
  * Infers category from title keywords (accessory-first re-ordered)
@@ -54,17 +30,6 @@ function detectCategory(title, store) {
   
   if (store === 'Amazon' || store === 'Flipkart') return 'Deals';
   return 'Shopping';
-}
-
-/**
- * Returns dynamic badge based on rating
- */
-function getBadge(ratingVal) {
-  const num = parseFloat(ratingVal);
-  if (isNaN(num)) return 'Trending';
-  if (num >= 4.3) return 'Bestseller';
-  if (num >= 4.0) return 'Top Rated';
-  return 'Trending';
 }
 
 /**
@@ -101,18 +66,6 @@ export async function formatDealMessage(product, affiliateUrl) {
 
   // Generate dynamic fields
   const category = detectCategory(product.title, product.store);
-  const ratingVal = product.rating;
-  const reviewCount = product.reviewCount;
-  
-  // Format rating line conditionally (omit if null/missing)
-  let ratingLine = '';
-  if (ratingVal && parseFloat(ratingVal) > 0) {
-    const starRating = generateStarRating(ratingVal);
-    const badge = getBadge(ratingVal);
-    const ratingStr = parseFloat(ratingVal).toFixed(1);
-    const reviewsStr = reviewCount ? `${reviewCount}+` : '100+';
-    ratingLine = `\n${starRating} <b>${ratingStr}</b> (${reviewsStr} ratings) • <b>${badge}</b>\n`;
-  }
 
   // Safe strings
   const title = escapeHtml(product.title);
@@ -126,7 +79,6 @@ export async function formatDealMessage(product, affiliateUrl) {
     .replace(/{salePrice}/g, salePrice)
     .replace(/{discount}/g, discount)
     .replace(/{category}/g, category)
-    .replace(/{ratingLine}/g, ratingLine)
     .replace(/{store}/g, product.store || 'Store')
     .replace(/{affiliateUrl}/g, affiliateUrl);
 }
